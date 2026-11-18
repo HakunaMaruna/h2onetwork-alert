@@ -34,16 +34,20 @@
    sudo apt install git python3 python3-pip -y
    ```
 
-### Шаг 3: Скачивание бота
-1. Скачайте проект с GitHub:
+### Шаг 3: Настройка бота
+1. Переименуйте файл `.env.example` (или создайте `.env`) и укажите в нем свои данные:
    ```bash
-   git clone https://github.com/HakunaMaruna/h2onetwork-alert.git
-   cd h2onetwork-alert
+   cp .env.example .env
+   nano .env
    ```
+   Впишите туда:
+   - `BOT_TOKEN` — токен вашего бота от @BotFather.
+   - `ADMIN_ID` — ваш ID в Telegram.
+   - `ALERT_CHAT_ID` — ID группы или канала для уведомлений.
 
 2. Установите библиотеки:
    ```bash
-   pip3 install aiogram aiosqlite --break-system-packages
+   pip3 install aiogram aiosqlite python-dotenv --break-system-packages
    ```
 
 ### Шаг 4: Запуск

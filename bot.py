@@ -1,13 +1,19 @@
 import asyncio
 import logging
+import os
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from aiogram.fsm.context import FSMContext
 from aiogram.fsm.storage.memory import MemoryStorage
+from dotenv import load_dotenv
 import database
 
-TOKEN = "9102670058:AAFUfELnDIeGh5S3LI4w1a7B0J7YH3x-FUA"
+load_dotenv()
+
+TOKEN = os.getenv("BOT_TOKEN")
+ADMIN_ID = int(os.getenv("ADMIN_ID", 0))
+ALERT_CHAT_ID = os.getenv("ALERT_CHAT_ID")
+
 bot = Bot(token=TOKEN)
 dp = Dispatcher(storage=MemoryStorage())
 
