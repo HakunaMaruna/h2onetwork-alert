@@ -4,46 +4,33 @@ DB_NAME = "hosting_bot.db"
 
 async def init_db():
     async with aiosqlite.connect(DB_NAME) as db:
-        await db.execute('''
-            CREATE TABLE IF NOT EXISTS hostings (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL,
-                cost REAL,
-                next_payment_date DATE,
-                interval_days INTEGER DEFAULT 30
-            )
-        ''')
-        # Таблица истории оплат
-        await db.execute('''
-            CREATE TABLE IF NOT EXISTS payments (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                hosting_id INTEGER,
-                amount REAL,
-                payment_date DATE,
-                FOREIGN KEY(hosting_id) REFERENCES hostings(id)
-            )
-        ''')
+        await db.execute('''CREATE TABLE IF NOT EXISTS hostings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL
+        )''')
+        await db.execute('''CREATE TABLE IF NOT EXISTS servers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            hosting_id INTEGER,
+            name TEXT,
+            ip TEXT,
+            domain TEXT,
+            user TEXT,
+            password TEXT,
+            location TEXT,
+            cost REAL,
+            next_payment DATE,
+            interval_days INTEGER DEFAULT 30,
+            FOREIGN KEY(hosting_id) REFERENCES hostings(id)
+        )''')
+        await db.execute('''CREATE TABLE IF NOT EXISTS payments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            server_id INTEGER,
+            amount REAL,
+            payment_date DATE,
+            FOREIGN KEY(server_id) REFERENCES servers(id)
+        )''')
+        await db.execute('CREATE TABLE IF NOT EXISTS config (key TEXT PRIMARY KEY, value TEXT)')
         await db.execute('INSERT OR IGNORE INTO config (key, value) VALUES (?, ?)', ('admin_id', '8012532918'))
-        await db.commit()
-
-async def update_hosting(hosting_id, name, cost, next_date, interval):
-    async with aiosqlite.connect(DB_NAME) as db:
-        await db.execute('''
-            UPDATE hostings 
-            SET name = ?, cost = ?, next_payment_date = ?, interval_days = ?
-            WHERE id = ?
-        ''', (name, cost, next_date, interval, hosting_id))
-        await db.commit()
-
-async def record_payment(hosting_id, amount, date):
-    async with aiosqlite.connect(DB_NAME) as db:
-        await db.execute('INSERT INTO payments (hosting_id, amount, payment_date) VALUES (?, ?, ?)', (hosting_id, amount, date))
-        # Обновляем дату следующего платежа
-        await db.execute('''
-            UPDATE hostings 
-            SET next_payment_date = date(next_payment_date, '+' || interval_days || ' days')
-            WHERE id = ?
-        ''', (hosting_id,))
         await db.commit()
 
 async def get_hostings():
@@ -51,13 +38,31 @@ async def get_hostings():
         async with db.execute('SELECT * FROM hostings') as cursor:
             return await cursor.fetchall()
 
-async def get_config(key):
+async def add_hosting(name):
     async with aiosqlite.connect(DB_NAME) as db:
-        async with db.execute('SELECT value FROM config WHERE key = ?', (key,)) as cursor:
-            row = await cursor.fetchone()
-            return row[0] if row else None
+        await db.execute('INSERT INTO hostings (name) VALUES (?)', (name,))
+        await db.commit()
 
-async def set_config(key, value):
+async def add_server(hosting_id, name, ip, domain, user, password, location, cost, date, interval):
     async with aiosqlite.connect(DB_NAME) as db:
-        await db.execute('INSERT OR REPLACE INTO config (key, value) VALUES (?, ?)', (key, value))
+        await db.execute('''INSERT INTO servers 
+            (hosting_id, name, ip, domain, user, password, location, cost, next_payment, interval_days) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', 
+            (hosting_id, name, ip, domain, user, password, location, cost, date, interval))
+        await db.commit()
+
+async def get_servers(hosting_id):
+    async with aiosqlite.connect(DB_NAME) as db:
+        async with db.execute('SELECT * FROM servers WHERE hosting_id = ?', (hosting_id,)) as cursor:
+            return await cursor.fetchall()
+
+async def get_server(server_id):
+    async with aiosqlite.connect(DB_NAME) as db:
+        async with db.execute('SELECT * FROM servers WHERE id = ?', (server_id,)) as cursor:
+            return await cursor.fetchone()
+
+async def record_payment(server_id, amount, date):
+    async with aiosqlite.connect(DB_NAME) as db:
+        await db.execute('INSERT INTO payments (server_id, amount, payment_date) VALUES (?, ?, ?)', (server_id, amount, date))
+        await db.execute('''UPDATE servers SET next_payment = date(next_payment, '+' || interval_days || ' days') WHERE id = ?''', (server_id,))
         await db.commit()
